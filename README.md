@@ -1,35 +1,31 @@
 # EpiStack
 
-Модульная система для извлечения, абстрагирования и конкретизации связок с метриками качества.
+Модульная система реализующая атомарные преобразования со знаниями.  
 
 ## Структура проекта
 
 ```
 epistack/
-├── extraction/          # Извлечение связок
+├── module_extraction/   # Извлечение связок
 │   ├── signatures.py    # ExtractRelationsSig
-│   └── module.py        # RelationExtractor
+│   ├── module.py        # RelationExtractor
+│   └── optimize.py      # Оптимизатор модуля
 │
-├── naming/              # Именование связок
-│   ├── signatures.py    # NameRelationSig
-│   └── module.py        # RelationNamer
+├── module_naming/       # Именование связок
+│   ├── signatures.py    # CausalRelationExtractorSignature
+│   ├── module.py        # RelationNamer
+│   └── optimize.py      # Оптимизатор модуля
 │
-├── abstraction/         # Абстрагирование в A-T-B
+├── module_abstraction/  # Абстрагирование в A-T-B
 │   ├── signatures.py    # AbstractATBSig, CritiqueSig, ReviseSig
 │   ├── module.py        # NaiveATBAbstraction, EfficientATBAbstraction
-│   └── metrics.py       # AbstractionMetrics (id:24)
+│   ├── metrics.py       # AbstractionMetrics (id:24)
+│   └── optimize.py      # Оптимизатор модуля
 │
-├── concretization/      # Конкретизация из A-T-B
-│   ├── signatures.py    # ConcretizeFromATBSig, CritiqueSig, ReviseSig
-│   ├── module.py        # ConcretizerWithReflection
-│   └── metrics.py       # ConcretizationMetrics (id:23)
-│
-├── evaluation/          # Общие метрики оценки
-│   └── metrics.py       # StabilityMetrics (id:22)
-│
-├── pipeline/            # Полный пайплайн и оптимизация
-│   ├── epistack.py      # EpiStack (композитный модуль)
-│   └── optimizer.py     # optimize_with_gepa
+├── module_concretization/  # Конкретизация из A-T-B
+│   ├── signatures.py       # ConcretizeFromATBSig, CritiqueSig, ReviseSig
+│   ├── module.py           # ConcretizerWithReflection
+│   └── metrics.py          # ConcretizationMetrics (id:23)
 │
 ├── utils/               # Вспомогательные функции
 │   └── helpers.py       # safe_json_dict, jaccard_like
@@ -37,36 +33,33 @@ epistack/
 ├── config/              # Конфигурация LLM
 │   └── llm.py           # configure_llm
 │
-└── main.py              # Точка входа для запуска
+├── main.py              # Точка входа для запуска
+└── optimize_modules.py  # Главный оптимизатор (импортирует из модулей)
 ```
 
 ## Преобразования и их компоненты
 
-### 📊 extraction/
+### 📊 module_extraction/
 - **Сигнатура**: `ExtractRelationsSig`
 - **Модуль**: `RelationExtractor`
 - **Метрики**: количество извлеченных связок
 
-### 🏷️ naming/
-- **Сигнатура**: `NameRelationSig`
+### 🏷️ module_naming/
+- **Сигнатура**: `CausalRelationExtractorSignature`
 - **Модуль**: `RelationNamer`
 
-### 🔺 abstraction/
+### 🔺 module_abstraction/
 - **Сигнатуры**: `AbstractATBSig`, `CritiqueSig`, `ReviseSig`
 - **Модули**: `NaiveATBAbstraction`, `EfficientATBAbstraction`
 - **Метрики** (id:24):
   - `sufficient_abstraction` - достаточность абстракции
   - `not_over_abstracted` - отсутствие пере-абстрагирования
 
-### 🔻 concretization/
+### 🔻 module_concretization/
 - **Сигнатуры**: `ConcretizeFromATBSig`, `CritiqueSig`, `ReviseSig`
 - **Модуль**: `ConcretizerWithReflection`
 - **Метрики** (id:23):
   - `equivalence_after_concretization` - эквивалентность после конкретизации
-
-### ✅ evaluation/
-- **Метрики** (id:22):
-  - `stability_after_reabstraction` - стабильность после повторного абстрагирования
 
 ## Описание метрик
 
@@ -77,40 +70,84 @@ epistack/
 ### Метрики конкретизации (id:23)
 - **equivalence_after_concretization**: LLM-as-Judge проверяет эквивалентность между исходной связкой и конкретизацией из A-T-B
 
-### Метрики стабильности (id:22)
-- **stability_after_reabstraction**: проверка через Jaccard-подобие, что повторное абстрагирование конкретизации даёт похожий результат
+## Установка
+
+```bash
+# Установка в режиме разработки (editable)
+pip install -e .
+
+# Проверка импортов
+python test_imports.py
+```
+
+Подробнее см. [INSTALL.md](INSTALL.md)
 
 ## Использование
 
+### Базовый пример
+
 ```python
-from config import configure_llm
-from pipeline import EpiStack
+from epistack import configure_llm, RelationNamer
 
 configure_llm()
 
-text = "Ваш текст для анализа..."
-pipeline = EpiStack(use_efficient_abstraction=True)
-result = pipeline(text=text)
-
-# Результат содержит метрики для каждой связки:
-# {
-#   "items": [
-#     {
-#       "relation": "...",
-#       "name": "...",
-#       "ATB": {"A": "...", "T": "...", "B": "..."},
-#       "concretized": "...",
-#       "metrics": {
-#         "sufficient_abstraction": 0|1,      # id:24
-#         "not_over_abstracted": 0|1,         # id:24
-#         "equivalence_after_concretization": 0|1,  # id:23
-#         "stability_after_reabstraction": 0|1      # id:22
-#       }
-#     }
-#   ]
-# }
+text = "Исследователь применил метод дистилляции знаний..."
+namer = RelationNamer()
+result = namer(text=text)
 ```
+
+### Использование отдельных модулей
+
+```python
+# Импорт конкретных модулей
+from epistack.module_abstraction import NaiveATBAbstraction, AbstractionMetrics
+from epistack.module_naming import RelationNamer
+from epistack.module_concretization import ConcretizerWithReflection
+
+# Или через основной пакет
+from epistack import (
+    RelationNamer,
+    NaiveATBAbstraction,
+    ConcretizerWithReflection
+)
+```
+
+## 📊 Датасет для оптимизации
+
+**Публичный датасет**: [Nick-Sen/epistack-optimization](https://huggingface.co/datasets/Nick-Sen/epistack-optimization)
+
+### Оптимизация через CLI
+
+```bash
+# Все модули
+python optimize_modules.py Nick-Sen all
+
+# Отдельные модули
+python optimize_modules.py Nick-Sen naming
+python optimize_modules.py Nick-Sen extraction
+python optimize_modules.py Nick-Sen abstraction
+```
+
+### Оптимизация программно
+
+```python
+# Импорт оптимизаторов из модулей
+from epistack.module_naming import optimize as optimize_naming
+from epistack.module_extraction import optimize as optimize_extraction
+from epistack.module_abstraction import optimize as optimize_abstraction
+
+# Оптимизация конкретного модуля
+optimized_namer = optimize_naming('Nick-Sen')
+optimized_extractor = optimize_extraction('Nick-Sen')
+optimized_abstractor = optimize_abstraction('Nick-Sen')
+```
+
+Подробнее: [DATASET_INFO.md](DATASET_INFO.md)
 
 ## Зависимости
 
 - dspy-ai>=2.4.0
+- datasets>=2.14.0
+- huggingface_hub>=0.19.0
+- pandas>=2.0.0
+- python-dotenv>=1.0.0

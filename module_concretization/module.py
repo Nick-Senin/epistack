@@ -1,7 +1,8 @@
 import json
 from typing import Dict
 import dspy
-from .signatures import ConcretizeFromATBSig, CritiqueSig, ReviseSig
+from .signatures import ConcretizeFromATBSig
+from ..utils.common_signatures import CritiqueSig, ReviseSig
 
 
 class ConcretizerWithReflection(dspy.Module):

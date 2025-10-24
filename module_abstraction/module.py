@@ -1,8 +1,9 @@
 import json
 from typing import Dict
 import dspy
-from .signatures import AbstractATBSig, CritiqueSig, ReviseSig
-from utils.helpers import safe_json_dict
+from .signatures import AbstractATBSig
+from ..utils.common_signatures import CritiqueSig, ReviseSig
+from ..utils.helpers import safe_json_dict
 
 
 class NaiveATBAbstraction(dspy.Module):

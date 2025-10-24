@@ -7,34 +7,25 @@ __pycache__/
 venv/
 env/
 ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+
+# Datasets
+epistack_data/epistack_optimization_local/
+*.db
+*.sqlite
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
+
+# Env
+.env
+.env.local
+
+# HF tokens
+.huggingface/
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Environment
-.env
-.env.local
-

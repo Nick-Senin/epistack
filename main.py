@@ -1,6 +1,5 @@
 import json
-from config import configure_llm
-from module_naming import RelationNamer
+from epistack import configure_llm, RelationNamer
 
 
 if __name__ == "__main__":
