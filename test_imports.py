@@ -42,8 +42,8 @@ if __name__ == "__main__":
         from epistack.module_naming import RelationNamer
         print("✓ Прямой импорт: epistack.module_naming")
         
-        from epistack.module_extraction import RelationExtractor
-        print("✓ Прямой импорт: epistack.module_extraction")
+        from epistack.module_extraction_by_name import RelationExtractor
+        print("✓ Прямой импорт: epistack.module_extraction_by_name")
         
         from epistack.module_concretization import ConcretizerWithReflection
         print("✓ Прямой импорт: epistack.module_concretization")

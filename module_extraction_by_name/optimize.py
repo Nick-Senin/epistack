@@ -3,7 +3,7 @@
 """
 import dspy
 from epistack_data import for_extraction_module
-from .module import RelationExtractor
+from .module import StateTransformationExtractor
 
 
 def extraction_metric(example, pred, trace=None):
@@ -23,7 +23,7 @@ def optimize(hf_username: str):
         hf_username: HuggingFace username для загрузки датасета
         
     Returns:
-        Оптимизированный модуль RelationExtractor
+        Оптимизированный модуль StateTransformationExtractor
     """
     # Загрузка датасета
     trainset = for_extraction_module(hf_username)
@@ -34,9 +34,9 @@ def optimize(hf_username: str):
         max_bootstrapped_demos=3
     )
     
-    module = RelationExtractor()
+    module = StateTransformationExtractor()
     optimized = optimizer.compile(module, trainset=trainset)
     
-    print("✅ RelationExtractor оптимизирован")
+    print("✅ StateTransformationExtractor оптимизирован")
     return optimized
 
