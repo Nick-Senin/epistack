@@ -15,3 +15,4 @@ def configure_llm():
         api_key=openrouter_api_key,
     )
     dspy.configure(lm=lm)
+    return lm

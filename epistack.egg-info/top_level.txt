@@ -9,6 +9,7 @@ module_concretization
 module_extraction_by_name
 module_formatter
 module_naming
+module_semantic_parallel_splitter
 module_template
 module_transformation_marker
 utils

@@ -1,81 +1,138 @@
 """
-TODO: Настройте оптимизацию модуля
+Модуль оптимизации DSPy программ
+
+Предоставляет функции для компиляции и оптимизации DSPy программ
+с использованием различных оптимизаторов: MIPROv2, GEPA, BootstrapFinetune
 """
+import os
 import dspy
-from .module import ModuleName
-from .metrics import ModuleMetric
+import dotenv
+from typing import Callable, Optional, Any
 
 
-def optimize(dataset=None, max_metric_calls=50, optimizer_type='gepa'):
+def configure_optimizer(
+    optimizer_type: str = "mipro",
+    metric: Optional[Callable] = None,
+    auto: str = "medium",
+    num_threads: int = 24,
+    track_stats: bool = False,
+    **kwargs
+) -> Any:
     """
-    Оптимизация модуля с использованием DSPy оптимизаторов
-    
+    Настройка и создание оптимизатора DSPy
+
     Args:
-        dataset: TODO: Датасет для оптимизации (list of dspy.Example)
-        max_metric_calls: Максимальное количество вызовов метрики
-        optimizer_type: Тип оптимизатора ('gepa', 'mipro', 'bootstrap')
-        
+        optimizer_type: Тип оптимизатора ('mipro', 'gepa', 'bootstrap')
+        metric: Функция метрики для оценки качества
+        auto: Уровень оптимизации ('light', 'medium', 'heavy')
+        num_threads: Количество потоков для параллельной обработки
+        track_stats: Отслеживать статистику (для GEPA)
+        **kwargs: Дополнительные параметры для оптимизатора
+
     Returns:
-        Оптимизированный модуль ModuleName
+        Сконфигурированный оптимизатор
     """
-    # TODO: Загрузите или создайте датасет
-    if dataset is None:
-        # Пример загрузки датасета:
-        # from epistack_data import load_module_dataset
-        # dataset = load_module_dataset()
-        raise ValueError("TODO: Предоставьте датасет для оптимизации")
-    
-    # TODO: Разделите на train/val если нужно
-    split_idx = int(len(dataset) * 0.8)
-    trainset = dataset[:split_idx]
-    valset = dataset[split_idx:]
-    
-    print(f"📊 Датасет: {len(trainset)} train, {len(valset)} val")
-    
-    # TODO: Создайте метрику
-    metric = ModuleMetric()
-    
-    # TODO: Выберите и настройте оптимизатор
-    if optimizer_type == 'gepa':
-        # GEPA - эволюционная оптимизация промптов с рефлексией
-        reflection_lm = dspy.settings.lm
-        optimizer = dspy.GEPA(
+    dotenv.load_dotenv()
+
+    if optimizer_type == "mipro":
+        from dspy.teleprompt import MIPROv2
+        return dspy.MIPROv2(
             metric=metric,
-            max_metric_calls=max_metric_calls,
-            reflection_lm=reflection_lm,
-            reflection_minibatch_size=3,
-            candidate_selection_strategy='pareto',
-            skip_perfect_score=True,
-            track_stats=True,
-            seed=42
+            auto=auto,
+            num_threads=num_threads,
+            **kwargs
         )
-    elif optimizer_type == 'mipro':
-        # MIPRO - оптимизация промптов и примеров
-        optimizer = dspy.MIPROv2(
+
+    elif optimizer_type == "gepa":
+        return dspy.GEPA(
             metric=metric,
-            num_candidates=10,
-            init_temperature=1.0
+            auto=auto,
+            num_threads=num_threads,
+            track_stats=track_stats,
+            **kwargs
         )
-    elif optimizer_type == 'bootstrap':
-        # Bootstrap - генерация примеров для few-shot
-        optimizer = dspy.BootstrapFewShot(
+
+    elif optimizer_type == "bootstrap":
+        dspy.settings.experimental = True
+        return dspy.BootstrapFinetune(
+            num_threads=num_threads,
             metric=metric,
-            max_bootstrapped_demos=4,
-            max_labeled_demos=4
+            **kwargs
         )
+
     else:
         raise ValueError(f"Неизвестный тип оптимизатора: {optimizer_type}")
-    
-    # TODO: Создайте и скомпилируйте модуль
-    module = ModuleName()
-    optimized = optimizer.compile(
-        module,
-        trainset=trainset,
-        valset=valset
+
+
+def optimize_program(
+    program: dspy.Program,
+    trainset: list,
+    valset: Optional[list] = None,
+    optimizer_type: str = "mipro",
+    metric: Optional[Callable] = None,
+    max_bootstrapped_demos: int = 2,
+    max_labeled_demos: int = 2,
+    save_path: Optional[str] = None,
+    **optimizer_kwargs
+) -> dspy.Program:
+    """
+    Компиляция и оптимизация DSPy программы
+
+    Args:
+        program: DSPy программа для оптимизации
+        trainset: Обучающий набор данных
+        valset: Валидационный набор (обязателен для GEPA)
+        optimizer_type: Тип оптимизатора ('mipro', 'gepa', 'bootstrap')
+        metric: Функция метрики для оценки
+        max_bootstrapped_demos: Макс. количество bootstrapped демо
+        max_labeled_demos: Макс. количество labeled демо
+        save_path: Путь для сохранения оптимизированной программы
+        **optimizer_kwargs: Дополнительные параметры оптимизатора
+
+    Returns:
+        Оптимизированная программа
+    """
+    optimizer = configure_optimizer(
+        optimizer_type=optimizer_type,
+        metric=metric,
+        **optimizer_kwargs
     )
-    
-    print(f"✅ Модуль оптимизирован с {optimizer_type.upper()}")
-    return optimized
+
+    # Компиляция с параметрами по умолчанию
+    compile_kwargs = {
+        "trainset": trainset,
+        "max_bootstrapped_demos": max_bootstrapped_demos,
+        "max_labeled_demos": max_labeled_demos,
+    }
+
+    # Добавляем valset если требуется (для GEPA)
+    if valset is not None:
+        compile_kwargs["valset"] = valset
+
+    optimized_program = optimizer.compile(program.deepcopy(), **compile_kwargs)
+
+    # Сохранение если указан путь
+    if save_path:
+        optimized_program.save(save_path)
+
+    return optimized_program
 
 
+def load_optimized_program(path: str) -> dspy.Program:
+    """
+    Загрузка ранее оптимизированной программы
 
+    Args:
+        path: Путь к сохранённой программе
+
+    Returns:
+        Загруженная оптимизированная программа
+    """
+    return dspy.Program.load(path)
+
+
+# TODO: Добавить специфичные метрики для модуля
+# Например:
+# def semantic_split_metric(gold, pred, trace=None):
+#     """Метрика для оценки качества семантической сегментации"""
+#     pass
